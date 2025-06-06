@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Investimentos Personalizado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVަB5eALEجAwIm//iQ3glAjXhHLCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" xintegrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4FsaNzgUApjvkxtaGqLCLgPQRZaBPfWls3RjYAYVC/AFaJk2SnNmlmOUTA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script type="module">
+        // No Firebase imports or initialization needed for local version with PDF generation
+
+        let planData = {
+            aporteMensalObjetivo: 0 
+        }; 
+
+        // --- ELEMENTOS DO DOM ---
+        const salarioBrutoInput = document.getElementById('salarioBruto');
+        const deducaoINSSInput = document.getElementById('deducaoINSS');
+        const irrfDevidoInput = document.getElementById('irrfDevido');
+        const baseCalculoIRRFDisplay = document.getElementById('baseCalculoIRRF');
+        const planoSaudeInput = document.getElementById('planoSaude');
+        const valeTransporteInput = document.getElementById('valeTransporte');
+        const outrasDeducoesInput = document.getElementById('outrasDeducoes');
+        const rendaExtraInput = document.getElementById('rendaExtra');
+        const valeAlimentacaoInput = document.getElementById('valeAlimentacao');
+        const outrosBeneficiosInput = document.getElementById('outrosBeneficios');
+        const salarioLiquidoEstimadoDisplay = document.getElementById('salarioLiquidoEstimado');
+        const rendaLiquidaDisponivelDisplay = document.getElementById('rendaLiquidaDisponivel');
+
+        const metaObjetivoValorInput = document.getElementById('metaObjetivoValor');
+        const metaObjetivoPrazoMesesInput = document.getElementById('metaObjetivoPrazoMeses');
+        const aporteMensalObjetivoDisplay = document.getElementById('aporteMensalObjetivo');
+
+        const reservaCustoMensalInput = document.getElementById('reservaCustoMensal');
+        const reservaMesesCoberturaInput = document.getElementById('reservaMesesCobertura');
+        const reservaMontanteIdealDisplay = document.getElementById('reservaMontanteIdeal');
+
+        const alocacaoLPRFInput = document.getElementById('alocacaoLPRF');
+        const alocacaoLPRVBRInput = document.getElementById('alocacaoLPRVBR');
+        const alocacaoLPRVEXTInput = document.getElementById('alocacaoLPRVEXT');
+        const alocacaoLPTotalDisplay = document.getElementById('alocacaoLPTotal');
+
+        const capacidadeInvestimentoMensalInput = document.getElementById('capacidadeInvestimentoMensal');
+        const aporteObjetivoUsuarioInput = document.getElementById('aporteObjetivoUsuario');
+        const aporteReservaUsuarioInput = document.getElementById('aporteReservaUsuario');
+        const aporteLongoPrazoUsuarioInput = document.getElementById('aporteLongoPrazoUsuario');
+        const totalAlocadoDisplay = document.getElementById('totalAlocado');
+        const restanteCapacidadeDisplay = document.getElementById('restanteCapacidade');
+        
+        const generatePdfButton = document.getElementById('generatePdfButton'); // Changed from saveButton
+        const loadingIndicator = document.getElementById('loadingIndicator'); // Can be used for PDF generation
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        // userIdDisplay is removed from HTML
+
+        // --- FUNÇÕES DE CÁLCULO E SUGESTÃO ---
+        function calculateRendaLiquida() {
+            const salarioBruto = parseFloat(salarioBrutoInput.value) || 0;
+            let contribuicaoINSSCalculada = 0;
+            const tetoINSS = 7786.02; 
+            if (salarioBruto > 0) {
+                if (salarioBruto <= 1412.00) contribuicaoINSSCalculada = salarioBruto * 0.075;
+                else if (salarioBruto <= 2666.68) contribuicaoINSSCalculada = (1412.00 * 0.075) + ((Math.min(salarioBruto, 2666.68) - 1412.01) * 0.09);
+                else if (salarioBruto <= 4000.03) contribuicaoINSSCalculada = (1412.00 * 0.075) + ((2666.68 - 1412.01) * 0.09) + ((Math.min(salarioBruto, 4000.03) - 2666.69) * 0.12);
+                else if (salarioBruto <= tetoINSS) contribuicaoINSSCalculada = (1412.00 * 0.075) + ((2666.68 - 1412.01) * 0.09) + ((4000.03 - 2666.69) * 0.12) + ((Math.min(salarioBruto, tetoINSS) - 4000.04) * 0.14);
+                else contribuicaoINSSCalculada = (1412.00 * 0.075) + ((2666.68 - 1412.01) * 0.09) + ((4000.03 - 2666.69) * 0.12) + ((tetoINSS - 4000.04) * 0.14);
+            }
+            contribuicaoINSSCalculada = Math.min(contribuicaoINSSCalculada, 908.86); 
+            deducaoINSSInput.value = contribuicaoINSSCalculada.toFixed(2);
+
+            const deducaoINSS = parseFloat(deducaoINSSInput.value) || 0; 
+            const baseCalculoIRRF = salarioBruto - deducaoINSS;
+            
+            let irrfDevidoCalculado = 0;
+            if (baseCalculoIRRF > 4664.68) irrfDevidoCalculado = (baseCalculoIRRF * 0.275) - 896.00;
+            else if (baseCalculoIRRF > 3751.06) irrfDevidoCalculado = (baseCalculoIRRF * 0.225) - 662.77;
+            else if (baseCalculoIRRF > 2826.66) irrfDevidoCalculado = (baseCalculoIRRF * 0.15) - 381.44;
+            else if (baseCalculoIRRF > 2259.21) irrfDevidoCalculado = (baseCalculoIRRF * 0.075) - 169.44;
+            irrfDevidoCalculado = Math.max(0, irrfDevidoCalculado); 
+            irrfDevidoInput.value = irrfDevidoCalculado.toFixed(2);
+
+            const irrfDevido = parseFloat(irrfDevidoInput.value) || 0; 
+            const salarioLiquidoAposImpostos = baseCalculoIRRF - irrfDevido;
+
+            const vPlanoSaude = parseFloat(planoSaudeInput.value) || 0;
+            const vValeTransporte = parseFloat(valeTransporteInput.value) || 0;
+            const vOutrasDeducoes = parseFloat(outrasDeducoesInput.value) || 0;
+            const vRendaExtra = parseFloat(rendaExtraInput.value) || 0;
+            const vValeAlimentacao = parseFloat(valeAlimentacaoInput.value) || 0;
+            const vOutrosBeneficios = parseFloat(outrosBeneficiosInput.value) || 0;
+
+            const rendaLiquidaDisponivel = salarioLiquidoAposImpostos - vPlanoSaude - vValeTransporte - vOutrasDeducoes + vRendaExtra + vValeAlimentacao + vOutrosBeneficios;
+
+            if (baseCalculoIRRFDisplay) baseCalculoIRRFDisplay.textContent = `R$ ${baseCalculoIRRF.toFixed(2)}`;
+            if (salarioLiquidoEstimadoDisplay) salarioLiquidoEstimadoDisplay.textContent = `R$ ${salarioLiquidoAposImpostos.toFixed(2)}`;
+            if (rendaLiquidaDisponivelDisplay) rendaLiquidaDisponivelDisplay.textContent = `R$ ${rendaLiquidaDisponivel.toFixed(2)}`;
+            
+            planData.salarioLiquidoEstimado = salarioLiquidoAposImpostos;
+            planData.rendaLiquidaDisponivel = rendaLiquidaDisponivel;
+            planData.baseCalculoIRRF = baseCalculoIRRF;
+        }
+
+        function calculateAporteObjetivo() {
+            const metaValor = parseFloat(metaObjetivoValorInput.value) || 0;
+            const prazoMeses = parseInt(metaObjetivoPrazoMesesInput.value) || 1; 
+            const aporteMensal = metaValor / prazoMeses;
+            if (aporteMensalObjetivoDisplay) aporteMensalObjetivoDisplay.textContent = `R$ ${aporteMensal.toFixed(2)}`;
+            planData.aporteMensalObjetivo = parseFloat(aporteMensal.toFixed(2));
+        }
+
+        function calculateReservaIdeal() {
+            const custoMensal = parseFloat(reservaCustoMensalInput.value) || 0;
+            const mesesCobertura = parseInt(reservaMesesCoberturaInput.value) || 0;
+            const montanteIdeal = custoMensal * mesesCobertura;
+            if (reservaMontanteIdealDisplay) reservaMontanteIdealDisplay.textContent = `R$ ${montanteIdeal.toFixed(2)}`;
+            planData.reservaMontanteIdeal = montanteIdeal;
+        }
+
+        function calculateAlocacaoLPTotal() {
+            const rf = parseFloat(alocacaoLPRFInput.value) || 0;
+            const rvbr = parseFloat(alocacaoLPRVBRInput.value) || 0;
+            const rvext = parseFloat(alocacaoLPRVEXTInput.value) || 0;
+            const total = rf + rvbr + rvext;
+            if (alocacaoLPTotalDisplay) {
+                alocacaoLPTotalDisplay.textContent = `${total.toFixed(1)}%`;
+                alocacaoLPTotalDisplay.classList.toggle('text-red-500', total !== 100);
+                alocacaoLPTotalDisplay.classList.toggle('text-green-500', total === 100);
+            }
+        }
+        
+        function _suggestAndSetDistributionValues() {
+            const capacidadeTotal = parseFloat(capacidadeInvestimentoMensalInput.value) || 0;
+            const necessidadeObjetivoCurtoPrazo = planData.aporteMensalObjetivo || 0;
+
+            let sugeridoObjetivo = 0;
+            let sugeridoReserva = 0;
+            let sugeridoLongoPrazo = 0;
+
+            if (capacidadeTotal > 0) {
+                sugeridoObjetivo = Math.min(capacidadeTotal, necessidadeObjetivoCurtoPrazo);
+                const restanteAposObjetivo = capacidadeTotal - sugeridoObjetivo;
+                sugeridoReserva = restanteAposObjetivo * 0.50;
+                sugeridoLongoPrazo = restanteAposObjetivo - sugeridoReserva;
+            }
+
+            sugeridoObjetivo = parseFloat(sugeridoObjetivo.toFixed(2));
+            sugeridoReserva = parseFloat(sugeridoReserva.toFixed(2));
+            sugeridoLongoPrazo = parseFloat(sugeridoLongoPrazo.toFixed(2));
+            
+            let somaSugestoes = sugeridoObjetivo + sugeridoReserva + sugeridoLongoPrazo;
+            if (somaSugestoes > capacidadeTotal) {
+                let diferenca = somaSugestoes - capacidadeTotal;
+                if (sugeridoLongoPrazo >= diferenca) sugeridoLongoPrazo -= diferenca;
+                else if (sugeridoReserva >= diferenca) sugeridoReserva -= diferenca;
+                else if (sugeridoObjetivo >= diferenca) sugeridoObjetivo -= diferenca;
+                sugeridoObjetivo = parseFloat(sugeridoObjetivo.toFixed(2));
+                sugeridoReserva = parseFloat(sugeridoReserva.toFixed(2));
+                sugeridoLongoPrazo = parseFloat(sugeridoLongoPrazo.toFixed(2));
+            }
+
+            if (aporteObjetivoUsuarioInput) aporteObjetivoUsuarioInput.value = sugeridoObjetivo.toFixed(2);
+            if (aporteReservaUsuarioInput) aporteReservaUsuarioInput.value = sugeridoReserva.toFixed(2);
+            if (aporteLongoPrazoUsuarioInput) aporteLongoPrazoUsuarioInput.value = sugeridoLongoPrazo.toFixed(2);
+        }
+
+        function calculateDistribuicaoAportes() {
+            const capacidadeTotal = parseFloat(capacidadeInvestimentoMensalInput.value) || 0;
+            const aporteObjetivoDefinido = parseFloat(aporteObjetivoUsuarioInput.value) || 0;
+            const aporteReservaDefinido = parseFloat(aporteReservaUsuarioInput.value) || 0;
+            const aporteLongoPrazoDefinido = parseFloat(aporteLongoPrazoUsuarioInput.value) || 0;
+            
+            const totalAlocadoCalculado = aporteObjetivoDefinido + aporteReservaDefinido + aporteLongoPrazoDefinido;
+            if (totalAlocadoDisplay) totalAlocadoDisplay.textContent = `R$ ${totalAlocadoCalculado.toFixed(2)}`;
+
+            const restanteFinal = capacidadeTotal - totalAlocadoCalculado;
+            if (restanteCapacidadeDisplay) {
+                restanteCapacidadeDisplay.textContent = `R$ ${restanteFinal.toFixed(2)}`;
+                restanteCapacidadeDisplay.classList.toggle('text-red-500', restanteFinal < 0);
+                restanteCapacidadeDisplay.classList.toggle('text-green-500', restanteFinal >= 0);
+            }
+
+            planData.aportesReais = {
+                objetivoCurtoPrazo: aporteObjetivoDefinido,
+                reserva: aporteReservaDefinido,
+                longoPrazo: aporteLongoPrazoDefinido
+            };
+        }
+
+        function collectAllData() { // Collects data for PDF generation or other local uses
+            planData.salarioBruto = salarioBrutoInput ? parseFloat(salarioBrutoInput.value) || 0 : 0;
+            planData.deducaoINSS = deducaoINSSInput ? parseFloat(deducaoINSSInput.value) || 0 : 0; 
+            planData.irrfDevido = irrfDevidoInput ? parseFloat(irrfDevidoInput.value) || 0 : 0; 
+            planData.planoSaude = planoSaudeInput ? parseFloat(planoSaudeInput.value) || 0 : 0;
+            planData.valeTransporte = valeTransporteInput ? parseFloat(valeTransporteInput.value) || 0 : 0;
+            planData.outrasDeducoes = outrasDeducoesInput ? parseFloat(outrasDeducoesInput.value) || 0 : 0;
+            planData.rendaExtra = rendaExtraInput ? parseFloat(rendaExtraInput.value) || 0 : 0;
+            planData.valeAlimentacao = valeAlimentacaoInput ? parseFloat(valeAlimentacaoInput.value) || 0 : 0;
+            planData.outrosBeneficios = outrosBeneficiosInput ? parseFloat(outrosBeneficiosInput.value) || 0 : 0;
+            
+            planData.metaObjetivoValor = metaObjetivoValorInput ? parseFloat(metaObjetivoValorInput.value) || 0 : 0;
+            planData.metaObjetivoPrazoMeses = metaObjetivoPrazoMesesInput ? parseInt(metaObjetivoPrazoMesesInput.value) || 0 : 0;
+
+            planData.reservaCustoMensal = reservaCustoMensalInput ? parseFloat(reservaCustoMensalInput.value) || 0 : 0;
+            planData.reservaMesesCobertura = reservaMesesCoberturaInput ? parseInt(reservaMesesCoberturaInput.value) || 0 : 0;
+            
+            planData.alocacaoLongoPrazo = {
+                rf: alocacaoLPRFInput ? parseFloat(alocacaoLPRFInput.value) || 0 : 0,
+                rvbr: alocacaoLPRVBRInput ? parseFloat(alocacaoLPRVBRInput.value) || 0 : 0,
+                rvext: alocacaoLPRVEXTInput ? parseFloat(alocacaoLPRVEXTInput.value) || 0 : 0,
+            };
+            planData.capacidadeInvestimentoMensal = capacidadeInvestimentoMensalInput ? parseFloat(capacidadeInvestimentoMensalInput.value) || 0 : 0;
+            // `planData.aportesReais` and `planData.aporteMensalObjetivo` are already updated by their respective functions
+        }
+        
+        function handleFullRecalculationAndSuggestion() {
+            calculateRendaLiquida();
+            calculateAporteObjetivo(); 
+            calculateReservaIdeal();
+            calculateAlocacaoLPTotal();
+            _suggestAndSetDistributionValues(); 
+            calculateDistribuicaoAportes(); 
+            collectAllData();
+        }
+
+        function handleDistributionInputChange() {
+            calculateDistribuicaoAportes();
+            collectAllData();
+        }
+        
+        function handlePartialRecalculation() {
+            calculateRendaLiquida();
+            calculateAporteObjetivo(); 
+            calculateReservaIdeal();
+            calculateAlocacaoLPTotal();
+            calculateDistribuicaoAportes(); 
+            collectAllData();
+        }
+
+        function populateFormWithDefaultData() {
+            if (salarioBrutoInput) salarioBrutoInput.value = 14192.00;
+            if (planoSaudeInput) planoSaudeInput.value = 0;
+            if (valeTransporteInput) valeTransporteInput.value = 0;
+            if (outrasDeducoesInput) outrasDeducoesInput.value = 0;
+            if (rendaExtraInput) rendaExtraInput.value = 0;
+            if (valeAlimentacaoInput) valeAlimentacaoInput.value = 0;
+            if (outrosBeneficiosInput) outrosBeneficiosInput.value = 0;
+
+            if (metaObjetivoValorInput) metaObjetivoValorInput.value = 20000.00;
+            if (metaObjetivoPrazoMesesInput) metaObjetivoPrazoMesesInput.value = 7;
+
+            if (reservaCustoMensalInput) reservaCustoMensalInput.value = 3000; 
+            if (reservaMesesCoberturaInput) reservaMesesCoberturaInput.value = 6;
+
+            if (alocacaoLPRFInput) alocacaoLPRFInput.value = 40;
+            if (alocacaoLPRVBRInput) alocacaoLPRVBRInput.value = 30;
+            if (alocacaoLPRVEXTInput) alocacaoLPRVEXTInput.value = 30;
+
+            if (capacidadeInvestimentoMensalInput) capacidadeInvestimentoMensalInput.value = 4000.00;
+        }
+        
+        async function generatePDF() {
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            if (generatePdfButton) generatePdfButton.disabled = true;
+            if (successMessage) successMessage.classList.add('hidden');
+            if (errorMessage) errorMessage.classList.add('hidden');
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const content = document.getElementById('planContentToPrint'); // Main content div
+            
+            // Ensure all 'details' elements are open for printing
+            const allDetails = content.querySelectorAll('details');
+            allDetails.forEach(detail => detail.open = true);
+
+            // Temporarily adjust styles for PDF generation if needed
+            // For example, remove shadows that might render poorly
+            content.style.boxShadow = 'none';
+            const subsectionContainers = content.querySelectorAll('.subsection-container');
+            subsectionContainers.forEach(sc => sc.style.boxShadow = 'none');
+
+
+            html2canvas(content, {
+                scale: 2, // Increase scale for better quality
+                useCORS: true,
+                onclone: (document) => {
+                    // This onclone function is crucial for Tailwind styles to be applied in html2canvas
+                    // It re-applies the Tailwind stylesheet link to the cloned document
+                    const tailwindLink = document.createElement('link');
+                    tailwindLink.rel = 'stylesheet';
+                    tailwindLink.href = 'https://cdn.tailwindcss.com'; // Ensure this matches your actual Tailwind CSS source
+                    document.head.appendChild(tailwindLink);
+
+                    // Ensure all 'details' elements are open in the cloned document as well
+                     const clonedDetails = document.querySelectorAll('details');
+                     clonedDetails.forEach(detail => detail.open = true);
+                }
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                let heightLeft = pdfHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - pdfHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                    heightLeft -= pdf.internal.pageSize.getHeight();
+                }
+                pdf.save('PlanoDeInvestimentos.pdf');
+                if (successMessage) {
+                    successMessage.textContent = "PDF gerado com sucesso!";
+                    successMessage.classList.remove('hidden');
+                     setTimeout(() => successMessage.classList.add('hidden'), 4000);
+                }
+            }).catch(err => {
+                console.error("Erro ao gerar PDF:", err);
+                if (errorMessage) {
+                    errorMessage.textContent = "Erro ao gerar PDF: " + err.message;
+                    errorMessage.classList.remove('hidden');
+                }
+            }).finally(() => {
+                 // Restore original styles
+                content.style.boxShadow = ''; // Restore or set to original
+                subsectionContainers.forEach(sc => sc.style.boxShadow = '');
+
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (generatePdfButton) generatePdfButton.disabled = false;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // No authUser or loadPlan needed for local version
+            populateFormWithDefaultData(); 
+            handleFullRecalculationAndSuggestion(); // Initial calculation and suggestion
+
+            const inputsForFullRecalcAndSuggestion = [
+                capacidadeInvestimentoMensalInput, 
+                metaObjetivoValorInput, 
+                metaObjetivoPrazoMesesInput
+            ];
+            const distributionInputs = [
+                aporteObjetivoUsuarioInput, 
+                aporteReservaUsuarioInput, 
+                aporteLongoPrazoUsuarioInput
+            ];
+            const otherInputsForPartialRecalc = [
+                salarioBrutoInput, deducaoINSSInput, irrfDevidoInput,
+                planoSaudeInput, valeTransporteInput, outrasDeducoesInput,
+                rendaExtraInput, valeAlimentacaoInput, outrosBeneficiosInput,
+                reservaCustoMensalInput, reservaMesesCoberturaInput,
+                alocacaoLPRFInput, alocacaoLPRVBRInput, alocacaoLPRVEXTInput
+            ];
+
+            inputsForFullRecalcAndSuggestion.forEach(input => {
+                if (input) input.addEventListener('input', handleFullRecalculationAndSuggestion);
+            });
+            distributionInputs.forEach(input => {
+                if (input) input.addEventListener('input', handleDistributionInputChange);
+            });
+            otherInputsForPartialRecalc.forEach(input => {
+                if (input) input.addEventListener('input', handlePartialRecalculation);
+            });
+            
+            if (generatePdfButton) { // Changed from saveButton
+                generatePdfButton.addEventListener('click', generatePDF);
+            }
+        });
+
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .section-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #1e3a8a; color: #1e3a8a; }
+        .subsection-title { font-size: 1.25rem; font-weight: 500; margin-bottom: 0.75rem; color: #1e40af; }
+        .input-label { display: block; margin-bottom: 0.25rem; font-weight: 500; color: #374151; }
+        .input-field { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; margin-bottom: 0.75rem; }
+        .input-field:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+        .calculated-value { font-weight: 600; color: #166534; }
+        .final-value { font-weight: 700; font-size: 1.25rem; color: #15803d; }
+        .info-text { color: #4b5563; font-size: 0.95rem; margin-bottom: 1rem; line-height: 1.6; }
+        .info-text strong { color: #374151;}
+        .info-text ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem;}
+        .info-text li { margin-bottom: 0.25rem;}
+        .table-like { border-collapse: collapse; width: 100%; margin-bottom: 1rem; font-size: 0.875rem; }
+        .table-like th, .table-like td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; }
+        .table-like th { background-color: #f3f4f6; font-weight: 600; color: #374151;}
+        .table-like tr:nth-child(even) { background-color: #f9fafb; }
+        .action-button { /* Renamed from save-button for generality */
+            background-color: #1d4ed8; color: white; padding: 0.75rem 1.5rem; 
+            border-radius: 0.375rem; font-weight: 500; cursor: pointer; 
+            transition: background-color 0.2s; border: none;
+        }
+        .action-button:hover { background-color: #1e40af; }
+        .action-button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        .message-box { padding: 0.75rem; margin-top: 1rem; border-radius: 0.375rem; font-size: 0.875rem; }
+        .success-message { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;}
+        .error-message { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;}
+        .subsection-container { background-color: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); }
+        details { margin-bottom: 1rem; border: 1px solid #e5e7eb; border-radius: 0.375rem; }
+        summary { padding: 0.75rem; font-weight: 500; cursor: pointer; background-color: #f3f4f6; border-radius: 0.375rem 0.375rem 0 0; }
+        details[open] summary { border-bottom: 1px solid #e5e7eb; }
+        .details-content { padding: 1rem; }
+
+        /* Styles for PDF output (some might be overridden by html2canvas processing) */
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .action-button, #loadingIndicator, #successMessage, #errorMessage, footer p:last-child { display: none !important; }
+            header p.text-sm { display:none !important; } /* Hide User ID in print */
+            details { border: 1px solid #ccc !important; } /* Ensure borders are visible */
+            details summary { background-color: #eee !important; }
+            details[open] { page-break-inside: avoid; } /* Try to keep details content together */
+            .subsection-container { box-shadow: none !important; border: 1px solid #eee !important; margin-bottom: 10pt !important; padding: 10pt !important;}
+            .table-like th, .table-like td { font-size: 8pt !important; padding: 4pt !important; }
+            .section-title { font-size: 14pt !important; margin-bottom: 8pt !important; padding-bottom: 4pt !important; }
+            .subsection-title { font-size: 12pt !important; margin-bottom: 6pt !important;}
+            .input-label { font-size: 9pt !important; }
+            .info-text { font-size: 9pt !important; margin-bottom: 8pt !important; }
+            .calculated-value, .final-value { font-size: 10pt !important; }
+            .input-field { display: none !important; } /* Hide input fields, show their values if needed via separate <p> tags in a print-specific div */
+             #planContentToPrint { padding: 20pt !important; }
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div id="planContentToPrint" class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl"> <!-- ID added for PDF generation -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-blue-700">Plano de Investimentos Personalizado</h1>
+            <!-- User ID display removed -->
+        </header>
+
+        <!-- 1. Introdução e Análise da Situação Financeira Atual -->
+        <section class="mb-8">
+            <h2 class="section-title">1. Introdução e Análise da Situação Financeira Atual</h2>
+            
+            <div class="subsection-container">
+                <h3 class="subsection-title">1.1. Boas-vindas e Propósito do Relatório</h3>
+                <p class="info-text">
+                    Este relatório tem como propósito apresentar um plano de investimentos personalizado, elaborado em consonância com os objetivos financeiros delineados: a formação de um fundo para um objetivo específico de curto prazo, a constituição de uma reserva de emergência e o desenvolvimento de uma estratégia de investimentos de longo prazo. O plano considera a renda bruta mensal informada e os prazos especificados para cada meta.
+                </p>
+            </div>
+
+            <div class="subsection-container">
+                <h3 class="subsection-title">1.2. Estimativa da Renda Líquida Mensal</h3>
+                <p class="info-text">
+                    Para um planejamento financeiro eficaz, é primordial estimar a renda líquida mensal disponível para investimentos e despesas. A seguir, apresenta-se um cálculo demonstrativo, subtraindo as deduções obrigatórias de INSS e Imposto de Renda Retido na Fonte (IRRF) da renda bruta informada, e considerando outros descontos e benefícios.
+                </p>
+                <p class="info-text"><strong>Insira sua renda bruta e demais valores. As deduções de INSS e IRRF serão estimadas automaticamente, mas você pode ajustá-las se souber os valores exatos.</strong></p>
+                
+                <div class="grid md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label for="salarioBruto" class="input-label">Salário Bruto (R$):</label>
+                        <input type="number" id="salarioBruto" class="input-field" step="0.01" placeholder="14192.00">
+                    </div>
+                    <div>
+                        <label for="rendaExtra" class="input-label">Renda Extra (R$):</label>
+                        <input type="number" id="rendaExtra" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label for="deducaoINSS" class="input-label">Dedução INSS (Estimada/Editável) (R$):</label>
+                        <input type="number" id="deducaoINSS" class="input-field" step="0.01" placeholder="Calculado">
+                    </div>
+                    <div>
+                        <label for="irrfDevido" class="input-label">IRRF Devido (Estimado/Editável) (R$):</label>
+                        <input type="number" id="irrfDevido" class="input-field" step="0.01" placeholder="Calculado">
+                    </div>
+                    <div>
+                        <p class="input-label">Base de Cálculo IRRF (R$):</p>
+                        <p id="baseCalculoIRRF" class="calculated-value p-2 bg-gray-100 rounded-md">R$ 0.00</p>
+                    </div>
+                     <div>
+                        <p class="input-label">Salário Líquido (após INSS e IRRF) (R$):</p>
+                        <p id="salarioLiquidoEstimado" class="calculated-value p-2 bg-gray-100 rounded-md">R$ 0.00</p>
+                    </div>
+
+                    <hr class="md:col-span-2 my-2 border-gray-300">
+
+                    <div class="md:col-span-2 subsection-title !text-base !text-gray-700 !mb-1">Outras Deduções Mensais:</div>
+                    <div>
+                        <label for="planoSaude" class="input-label">Plano de Saúde (R$):</label>
+                        <input type="number" id="planoSaude" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label for="valeTransporte" class="input-label">Vale Transporte (desconto) (R$):</label>
+                        <input type="number" id="valeTransporte" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+                     <div>
+                        <label for="outrasDeducoes" class="input-label">Outras Deduções (ex: empréstimos) (R$):</label>
+                        <input type="number" id="outrasDeducoes" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <hr class="md:col-span-2 my-2 border-gray-300">
+                    
+                    <div class="md:col-span-2 subsection-title !text-base !text-gray-700 !mb-1">Outros Benefícios/Valores Mensais:</div>
+                     <div>
+                        <label for="valeAlimentacao" class="input-label">Vale Alimentação/Refeição (R$):</label>
+                        <input type="number" id="valeAlimentacao" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+                     <div>
+                        <label for="outrosBeneficios" class="input-label">Outros Benefícios (R$):</label>
+                        <input type="number" id="outrosBeneficios" class="input-field" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                 <div class="mt-6 pt-4 border-t border-blue-200">
+                    <p class="input-label text-lg">Renda Líquida Disponível (para Despesas e Investimentos) (R$):</p>
+                    <p id="rendaLiquidaDisponivel" class="final-value p-2 bg-green-100 rounded-md">R$ 0.00</p>
+                </div>
+
+                <details class="mt-4">
+                    <summary>Detalhes do Cálculo Estimativo (INSS e IRRF)</summary>
+                    <div class="details-content info-text">
+                        <p><strong>Contribuição ao INSS (Estimativa para 2025):</strong></p>
+                        <p>O cálculo do INSS segue uma tabela de alíquotas progressivas, incidentes sobre faixas salariais, até o teto de contribuição. Para 2025, assume-se uma estrutura similar à de 2024. Com uma renda bruta de R$14.192,00, que excede o teto do INSS (estimado em R$7.786,02 para fins de cálculo, similar ao de 2024), a contribuição é calculada sobre este teto.</p>
+                        <ul>
+                            <li>1ª Faixa: até R$1.412,00 (exemplo) x 7,5%</li>
+                            <li>2ª Faixa: (R$2.666,68 - R$1.412,01) x 9%</li>
+                            <li>3ª Faixa: (R$4.000,03 - R$2.666,69) x 12%</li>
+                            <li>4ª Faixa: (R$7.786,02 - R$4.000,04) x 14%</li>
+                        </ul>
+                        <p>A soma dessas parcelas resulta em uma contribuição máxima estimada em torno de R$908,86. <strong>Recomenda-se a verificação do valor exato no holerite, pois o valor acima é uma estimativa e pode ser editado.</strong></p>
+                        <p class="mt-2"><strong>Imposto de Renda Retido na Fonte (IRRF):</strong></p>
+                        <p>A base de cálculo do IRRF é a renda bruta menos a contribuição ao INSS e eventuais deduções por dependentes (não informados, portanto, considerados zero neste cálculo). Aplicando a tabela progressiva do IRRF para 2025 (exemplo: para uma base de R$13.283,14, a alíquota é de 27,5%, com uma parcela a deduzir de R$896,00, resultando em IRRF de R$2.756,86). <strong>O valor do IRRF também é uma estimativa e pode ser editado.</strong></p>
+                        <p><em>Nota: Valores de INSS e IRRF são estimativas. É fundamental consultar o holerite para os valores exatos ou ajustar os campos acima.</em></p>
+                    </div>
+                </details>
+                <p class="info-text mt-4">Com uma renda líquida estimada, define-se a capacidade de poupança mensal, que será o alicerce para os aportes nos investimentos.</p>
+            </div>
+
+            <div class="subsection-container">
+                <h3 class="subsection-title">1.3. Definição do Perfil de Investidor e Suitability</h3>
+                <p class="info-text">
+                    Antes de qualquer recomendação de investimento, é crucial entender o processo de suitability e o perfil de investidor.
+                    O processo de suitability, conforme a Resolução CVM nº 30, visa assegurar que os produtos, serviços e operações financeiras sejam adequados ao perfil de cada cliente. Este processo envolve a identificação dos objetivos, situação financeira, conhecimento sobre investimentos e tolerância a riscos do investidor. As instituições financeiras são obrigadas a realizar essa análise, geralmente por meio de um questionário denominado Análise do Perfil do Investidor (API).
+                </p>
+                <p class="info-text">
+                    Com base nos objetivos apresentados – um fundo de curto prazo, uma reserva de emergência e um plano de longo prazo – infere-se um perfil de investidor multifacetado. Para as metas de curto prazo (objetivo principal e reserva de emergência), a postura deve ser conservadora, priorizando a segurança e a liquidez. Para os investimentos de longo prazo, é possível adoptar uma abordagem com maior tolerância a riscos (moderada a arrojada), visando um potencial de rentabilidade mais elevado.
+                </p>
+                <p class="info-text">
+                    Esta distinção é fundamental. Os diferentes horizontes de tempo e as naturezas distintas dos objetivos financeiros exigem estratégias de investimento segmentadas. Não se deve aplicar a mesma lógica de risco e retorno a todas as economias. A segmentação da carteira em "caixinhas" separadas para cada objetivo protege as metas de curto prazo da instabilidade dos mercados de maior risco.
+                </p>
+                 <p class="info-text">
+                    É imprescindível que, ao abrir conta em uma corretora, o questionário API seja respondido com seriedade e honestidade. Este processo não deve ser encarado como uma mera formalidade burocrática, mas como uma valiosa ferramenta de autoconhecimento financeiro.
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. Estratégia de Investimento de Curto Prazo: Seu Objetivo Principal -->
+        <section class="mb-8">
+            <h2 class="section-title">2. Estratégia de Investimento de Curto Prazo: Seu Objetivo Principal</h2>
+            <div class="subsection-container">
+                <h3 class="subsection-title">2.1. Detalhamento da Meta e Prazo</h3>
+                <p class="info-text">
+                    Defina a meta financeira para o seu objetivo de curto prazo e o prazo em meses para alcançá-la.
+                    Considerando o início dos aportes em junho de 2025, um prazo de 7 meses significaria alcançar a meta em dezembro de 2025.
+                    O aporte mensal necessário será calculado automaticamente (sem considerar rendimentos).
+                </p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="metaObjetivoValor" class="input-label">Meta Financeira do Objetivo (R$):</label>
+                        <input type="number" id="metaObjetivoValor" class="input-field" step="0.01" placeholder="20000.00">
+                    </div>
+                    <div>
+                        <label for="metaObjetivoPrazoMeses" class="input-label">Prazo (meses):</label>
+                        <input type="number" id="metaObjetivoPrazoMeses" class="input-field" placeholder="7">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <p class="input-label">Aporte Mensal Necessário (Estimativa sem rendimentos) (R$):</p>
+                    <p id="aporteMensalObjetivo" class="calculated-value p-2 bg-gray-100 rounded-md">R$ 0.00</p>
+                </div>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">2.2. Princípios para Investimentos de Curto Prazo</h3>
+                <p class="info-text">Para objetivos de curtíssimo prazo como este, a estratégia de investimento deve ser pautada por:</p>
+                <ul class="info-text">
+                    <li><strong>Preservação de Capital:</strong> A prioridade máxima é garantir que o valor principal investido não sofra perdas.</li>
+                    <li><strong>Liquidez:</strong> O dinheiro precisa estar disponível na data planejada, sem embaraços para o resgate.</li>
+                    <li><strong>Risco:</strong> Baixíssimo. Deve-se evitar a volatilidade do mercado de renda variável.</li>
+                    <li><strong>Rentabilidade:</strong> Embora secundária, busca-se uma rentabilidade que, no mínimo, supere a da caderneta de poupança.</li>
+                </ul>
+            </div>
+            <div class="subsection-container">
+                 <h3 class="subsection-title">2.3. Recomendações de Investimentos (Sugestões Gerais)</h3>
+                <p class="info-text">As seguintes opções são adequadas para este objetivo, dada a necessidade de segurança e liquidez:</p>
+                <ul class="info-text">
+                    <li><strong>Tesouro Selic:</strong> Títulos públicos federais com rentabilidade diária atrelada à taxa Selic. Baixo risco e liquidez diária (D+1). Custos: taxa de custódia da B3 de 0,20% a.a. (isenta para até R$10.000 no Tesouro Selic). Tributação: IR regressivo.</li>
+                    <li><strong>CDBs com Liquidez Diária (100% CDI ou mais):</strong> Títulos de bancos com boa solidez, rentabilidade próxima a 100% do CDI. Segurança: FGC até R$250.000. Tributação: IR regressivo.</li>
+                    <li><strong>Fundos DI com Baixa Taxa de Administração:</strong> Investem em títulos atrelados à Selic/CDI. Liquidez diária. Custos: Taxa de adm. (ideal < 0,3% a.a.). Tributação: Come-cotas e IR no resgate.</li>
+                    <li><strong>LCI/LCA:</strong> Isentas de IR, garantia FGC. Atenção à carência mínima (ex: 185 dias em novas emissões a partir de maio/2025), que pode não ser ideal para prazos muito curtos devido à liquidez reduzida antes do vencimento.</li>
+                </ul>
+                 <p class="info-text">A escolha para um objetivo de tão curto prazo deve priorizar a certeza da disponibilidade do recurso na data correta. Produtos como Tesouro Selic, CDBs de liquidez diária e Fundos DI com resgate rápido oferecem essa tranquilidade.</p>
+            </div>
+             <div class="subsection-container">
+                <h3 class="subsection-title">2.4. Proteção do FGC (Fundo Garantidor de Créditos)</h3>
+                <p class="info-text">
+                    Para os CDBs e LCIs/LCAs, o Fundo Garantidor de Créditos (FGC) oferece uma camada adicional de segurança. O FGC é uma entidade privada que garante o reembolso de depósitos e investimentos elegíveis em caso de falência da instituição financeira emissora. O limite de cobertura é de R$250.000 por CPF (ou CNPJ) por conglomerado financeiro. Além disso, há um teto global de R$1 milhão que pode ser recebido em garantias do FGC por um mesmo CPF/CNPJ a cada período de 4 anos. É importante notar que essa garantia é vinculada ao emissor do título (o banco) e não à corretora de investimentos utilizada para a aplicação.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">2.5. Tributação Detalhada (IR e IOF) para Renda Fixa</h3>
+                <p class="info-text">Os investimentos em Tesouro Selic, CDBs e Fundos DI (exceto LCI/LCA, que são isentas) estão sujeitos à tributação sobre os rendimentos:</p>
+                <p class="info-text"><strong>Imposto de Renda (IR):</strong> Segue uma tabela regressiva, onde a alíquota diminui conforme o prazo da aplicação:</p>
+                <ul class="info-text">
+                    <li>Até 180 dias: 22,5%</li>
+                    <li>De 181 a 360 dias: 20%</li>
+                    <li>De 361 a 720 dias: 17,5%</li>
+                    <li>Acima de 720 dias: 15%</li>
+                </ul>
+                <p class="info-text">Para um objetivo com prazo aproximado de 7 meses (cerca de 210 dias), a alíquota de IR incidente sobre os rendimentos será de 20%.</p>
+                <p class="info-text"><strong>Imposto sobre Operações Financeiras (IOF):</strong> Incide sobre os rendimentos apenas se o resgate ocorrer em menos de 30 dias após a aplicação. A alíquota também é regressiva, começando em 96% para resgate em 1 dia e chegando a 0% no 30º dia.</p>
+            </div>
+             <div class="subsection-container">
+                <h3 class="subsection-title">Tabela Comparativa de Opções para o Fundo de Curto Prazo</h3>
+                <div class="overflow-x-auto">
+                    <table class="table-like">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Risco</th>
+                                <th>Liquidez</th>
+                                <th>Rent. Bruta Esperada</th>
+                                <th>FGC</th>
+                                <th>Tributação (IR / IOF / Come-cotas)</th>
+                                <th>Prazo Mín./Carência</th>
+                                <th>Vantagens</th>
+                                <th>Desvantagens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Tesouro Selic</td>
+                                <td>Baixíssimo</td>
+                                <td>Diária (D+1)</td>
+                                <td>Taxa Selic</td>
+                                <td>Não Aplicável (Garantia Tesouro Nacional)</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Não</td>
+                                <td>Não há</td>
+                                <td>Altíssima segurança, liquidez, ideal para curto prazo.</td>
+                                <td>Rentabilidade pode variar com Selic, taxa B3 acima de R$10k.</td>
+                            </tr>
+                            <tr>
+                                <td>CDB 100% CDI</td>
+                                <td>Baixo</td>
+                                <td>Diária (após carência, se houver)</td>
+                                <td>~100% do CDI</td>
+                                <td>Sim</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Não</td>
+                                <td>Variável</td>
+                                <td>Segurança (FGC), boa liquidez, simplicidade.</td>
+                                <td>Rentabilidade pode ser pouco acima da inflação em cenários de juros baixos.</td>
+                            </tr>
+                            <tr>
+                                <td>Fundo DI (Baixa Taxa)</td>
+                                <td>Baixo</td>
+                                <td>Diária (D+0 ou D+1)</td>
+                                <td>~100% do CDI</td>
+                                <td>Não (investe em títulos com FGC/públicos)</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Sim (20%)</td>
+                                <td>Não há</td>
+                                <td>Praticidade, diversificação implícita, gestão profissional.</td>
+                                <td>Taxa de adm. (mesmo baixa) e come-cotas podem reduzir o rendimento líquido.</td>
+                            </tr>
+                            <tr>
+                                <td>LCI/LCA</td>
+                                <td>Baixo</td>
+                                <td>No vencimento ou após carência (ex: 185 dias)</td>
+                                <td>Variável</td>
+                                <td>Sim</td>
+                                <td>Isento de IR para PF / Não / Não</td>
+                                <td>Ex: 185 dias mínimo</td>
+                                <td>Isenção de IR, garantia do FGC.</td>
+                                <td>Baixa liquidez antes do vencimento/carência, pode não se adequar ao prazo exato.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Construção da Sua Reserva de Emergência -->
+        <section class="mb-8">
+            <h2 class="section-title">3. Reserva de Emergência</h2>
+            <div class="subsection-container">
+                <h3 class="subsection-title">3.1. Importância e Finalidade da Reserva de Emergência</h3>
+                <p class="info-text">
+                    A reserva de emergência é um montante financeiro destinado a cobrir despesas imprevistas e urgentes, como problemas de saúde, perda de emprego, reparos inadiáveis em casa ou no veículo, entre outras eventualidades. Sua principal finalidade é proporcionar segurança e tranquilidade, evitando que, diante de um imprevisto, seja necessário recorrer a empréstimos com juros elevados ou resgatar investimentos de longo prazo em momentos desfavoráveis.
+                </p>
+            </div>
+             <div class="subsection-container">
+                <h3 class="subsection-title">3.2. Cálculo do Montante Ideal</h3>
+                <p class="info-text">
+                    O tamanho ideal da reserva de emergência varia conforme a situação individual, mas uma recomendação comum é que ela cubra de 3 a 6 meses dos custos fixos mensais. Para profissionais com renda mais estável (como CLT), 6 meses pode ser um bom parâmetro. Para autônomos ou aqueles com renda mais variável, um período maior, entre 6 e 12 meses, pode ser mais prudente.
+                </p>
+                <p class="info-text"><strong>Realize um levantamento detalhado das suas despesas mensais fixas (moradia, alimentação, saúde, educação, transporte, etc.) para dimensionar corretamente a reserva.</strong></p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="reservaCustoMensal" class="input-label">Seus Custos Fixos Mensais (R$):</label>
+                        <input type="number" id="reservaCustoMensal" class="input-field" step="0.01" placeholder="3000.00">
+                    </div>
+                    <div>
+                        <label for="reservaMesesCobertura" class="input-label">Meses de Cobertura Desejados:</label>
+                        <input type="number" id="reservaMesesCobertura" class="input-field" placeholder="6">
+                    </div>
+                </div>
+                 <div class="mt-4">
+                    <p class="input-label">Montante Ideal para Reserva (R$):</p>
+                    <p id="reservaMontanteIdeal" class="calculated-value p-2 bg-gray-100 rounded-md">R$ 0.00</p>
+                </div>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">3.3. Estratégia de Formação Gradual</h3>
+                <p class="info-text">
+                    A reserva de emergência pode ser construída gradualmente. Uma parcela da capacidade de poupança mensal deve ser direcionada para este fim até que o montante ideal seja atingido. Dada a prioridade do objetivo de curto prazo, a formação da reserva de emergência pode ocorrer em paralelo, com um aporte inicial menor, sendo intensificada após a conclusão da meta principal.
+                </p>
+                <p class="info-text">
+                    A reserva de emergência não serve apenas para cobrir gastos inesperados; ela atua como um "seguro" para os investimentos de longo prazo. Sem um colchão de liquidez adequado, qualquer necessidade financeira urgente poderia forçar o resgate precipitado de ativos de maior risco em um momento inoportuno.
+                </p>
+            </div>
+             <div class="subsection-container">
+                <h3 class="subsection-title">3.4. Recomendações de Investimentos (Sugestões Gerais)</h3>
+                <p class="info-text">Os critérios para os investimentos da reserva de emergência são os mesmos do fundo de curto prazo: segurança máxima, liquidez imediata (ou quase imediata) e rentabilidade superior à poupança. As opções mais indicadas são:</p>
+                 <ul class="info-text">
+                    <li><strong>Tesouro Selic:</strong> Pela sua alta segurança e liquidez diária.</li>
+                    <li><strong>CDBs com Liquidez Diária:</strong> De bancos sólidos, com rentabilidade a partir de 100% do CDI.</li>
+                    <li><strong>Fundos DI com Baixa Taxa de Administração:</strong> Com resgate em D+0 ou D+1, e taxas de administração inferiores a 0,3% a.a.</li>
+                </ul>
+            </div>
+            <div class="subsection-container">
+                 <h3 class="subsection-title">3.5. Considerações sobre FGC e Tributação</h3>
+                <p class="info-text">
+                    As mesmas considerações sobre a proteção do FGC (para CDBs) e a tributação (IR e IOF) mencionadas na seção do objetivo de curto prazo aplicam-se aqui. Para a reserva de emergência, a liquidez imediata é ainda mais crítica, portanto, a incidência de IOF (para resgates em menos de 30 dias) é uma possibilidade real que deve ser considerada.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">Tabela Comparativa de Opções para a Reserva de Emergência</h3>
+                 <div class="overflow-x-auto">
+                    <table class="table-like">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Risco</th>
+                                <th>Liquidez</th>
+                                <th>Rent. Bruta Esperada</th>
+                                <th>FGC</th>
+                                <th>Tributação (IR / IOF / Come-cotas)</th>
+                                <th>Vantagens</th>
+                                <th>Desvantagens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Tesouro Selic</td>
+                                <td>Baixíssimo</td>
+                                <td>Diária (D+1)</td>
+                                <td>Taxa Selic</td>
+                                <td>Não Aplicável</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Não</td>
+                                <td>Máxima segurança, liquidez excelente.</td>
+                                <td>Rentabilidade atrelada à Selic, taxa B3 acima de R$10k.</td>
+                            </tr>
+                            <tr>
+                                <td>CDB 100% CDI</td>
+                                <td>Baixo</td>
+                                <td>Diária</td>
+                                <td>~100% do CDI</td>
+                                <td>Sim</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Não</td>
+                                <td>Segurança (FGC), liquidez diária, simplicidade.</td>
+                                <td>Pode render pouco acima da inflação com juros baixos.</td>
+                            </tr>
+                            <tr>
+                                <td>Fundo DI (Baixa Taxa)</td>
+                                <td>Baixo</td>
+                                <td>Diária (D+0 ou D+1)</td>
+                                <td>~100% do CDI</td>
+                                <td>Não</td>
+                                <td>IR Regressivo / IOF (&lt;30d) / Sim (20%)</td>
+                                <td>Alta liquidez, praticidade, gestão profissional.</td>
+                                <td>Taxa de adm. e come-cotas impactam rendimento.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Plano de Investimentos de Longo Prazo -->
+        <section class="mb-8">
+            <h2 class="section-title">4. Plano de Longo Prazo</h2>
+            <div class="subsection-container">
+                <h3 class="subsection-title">4.1. Filosofia de Investimento para Longo Prazo</h3>
+                <p class="info-text">
+                    Investir a longo prazo visa primordialmente o crescimento do patrimônio e a construção de riqueza ao longo de anos ou décadas. Esta estratégia se baseia em dois pilares fundamentais: aportes regulares e o poder dos juros compostos. Para buscar retornos potencialmente mais elevados, é necessário ter uma maior tolerância à volatilidade do mercado, compreendendo que oscilações de curto prazo são normais e não devem desviar o foco dos objetivos de longo prazo.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">4.2. Diversificação como Estratégia Chave</h3>
+                <p class="info-text">
+                    A diversificação é um dos princípios mais importantes para o investidor de longo prazo. A máxima "não colocar todos os ovos na mesma cesta" significa distribuir os investimentos entre diferentes classes de ativos (como Renda Fixa e Renda Variável), diferentes setores da economia e, idealmente, diferentes geografias. Esta prática ajuda a mitigar riscos: se uma classe de ativo ou setor estiver em baixa, outros podem compensar, suavizando a volatilidade da carteira total e aumentando as chances de um retorno consistente ao longo do tempo.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">4.3. Sugestão de Alocação de Ativos (Asset Allocation)</h3>
+                <p class="info-text">
+                    A alocação de ativos é a decisão de como distribuir o capital investido entre as diferentes classes de ativos. Para um perfil moderado/arrojado e um horizonte de longo prazo, uma sugestão inicial poderia ser a demonstrada abaixo. <strong>Esta é uma sugestão ilustrativa. A alocação ideal deve ser definida após a análise de perfil (API) na corretora e revisada periodicamente.</strong>
+                </p>
+                <p class="info-text">Defina os percentuais para cada classe de ativo. A soma deve ser 100%.</p>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="alocacaoLPRF" class="input-label">Renda Fixa (%):</label>
+                        <input type="number" id="alocacaoLPRF" class="input-field" step="0.1" placeholder="40">
+                    </div>
+                    <div>
+                        <label for="alocacaoLPRVBR" class="input-label">Renda Variável Brasil (%):</label>
+                        <input type="number" id="alocacaoLPRVBR" class="input-field" step="0.1" placeholder="30">
+                    </div>
+                    <div>
+                        <label for="alocacaoLPRVEXT" class="input-label">Renda Variável Exterior (%):</label>
+                        <input type="number" id="alocacaoLPRVEXT" class="input-field" step="0.1" placeholder="30">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <p class="input-label">Total Alocado (%):</p>
+                    <p id="alocacaoLPTotal" class="font-semibold p-2 bg-gray-100 rounded-md">0%</p>
+                </div>
+            </div>
+
+            <details class="subsection-container">
+                <summary class="subsection-title !mb-0">4.4. Detalhes sobre Renda Fixa de Longo Prazo (Sugestões)</summary>
+                <div class="details-content info-text">
+                    <p>Focada em proteção contra a inflação e estabilidade.</p>
+                    <p><strong>Tesouro IPCA+:</strong> Títulos públicos que pagam juros prefixados + variação do IPCA. Protegem contra a inflação, garantindo ganho real. Tributação: IR regressivo. Custos: Taxa de custódia B3 (0,20% a.a.).</p>
+                    <p><strong>ETFs de Renda Fixa:</strong> Fundos de índice negociados em bolsa que replicam carteiras de títulos de renda fixa (ex: IMA-B). Oferecem diversificação com baixo custo. Tributação: 15% sobre ganho de capital na venda, sem come-cotas semestral.</p>
+                </div>
+            </details>
+
+            <details class="subsection-container">
+                <summary class="subsection-title !mb-0">4.5. Detalhes sobre Renda Variável de Longo Prazo (Sugestões)</summary>
+                <div class="details-content">
+                    <p class="info-text">Buscando crescimento com o mercado acionário e imobiliário nacional, e diversificação geográfica.</p>
+                    <p class="info-text"><strong>Ações (Mercado Brasileiro):</strong> Participação em empresas listadas na B3. Foco em empresas com fundamentos sólidos e diversificação setorial. Custos: Corretagem (muitas vezes zero), emolumentos B3. Tributação: Isenção de IR para vendas até R$20k/mês no mercado à vista (exceto day trade); acima disso, 15% (swing trade) ou 20% (day trade) sobre o lucro, via DARF. Dividendos são isentos (atualmente); JCP tributado na fonte (15%).</p>
+                    <p class="info-text"><strong>Fundos de Investimento Imobiliário (FIIs):</strong> Investem em ativos imobiliários (tijolo ou papel). Vantagens: acesso ao mercado imobiliário com baixo valor, renda mensal (isentos de IR para PF sob condições), diversificação. Tributação: Rendimentos isentos para PF (condições: <10% cotas, fundo com >=100 cotistas, negociado em bolsa). Ganho de capital na venda de cotas: 20% sobre o lucro, via DARF.</p>
+                    <p class="info-text"><strong>ETFs de Ações Nacionais:</strong> Fundos de índice que replicam índices de ações. Ex: BOVA11 (Ibovespa), SMALL11 (Small Caps). Tributação: 15% sobre ganho de capital na venda, via DARF (sem isenção de R$20k/mês).</p>
+                    <p class="info-text"><strong>Investimento no Exterior (Diversificação Geográfica):</strong> Protege contra desvalorização da moeda local e acessa mercados globais.
+                        <br><strong>BDRs (Brazilian Depositary Receipts):</strong> Certificados de ações estrangeiras negociados na B3. Tributação: Ganho de capital 15% (ou 20% day trade), via DARF (sem isenção R$20k/mês). Dividendos tributados pela tabela progressiva do IR (Carnê-Leão).
+                        <br><strong>ETFs Internacionais (negociados na B3):</strong> Ex: IVVB11 (S&P 500), WRLD11 (global). Tributação: Ganho de capital 15% na venda, via DARF. Dividendos geralmente reinvestidos (acumulação).
+                    </p>
+                    <p class="info-text"><strong>Previdência Privada (PGBL/VGBL):</strong> Foco em aposentadoria, com benefícios fiscais.
+                        <br><strong>PGBL:</strong> Contribuições dedutíveis do IR anual (até 12% renda bruta). IR no resgate sobre valor total. Para declaração completa.
+                        <br><strong>VGBL:</strong> Contribuições não dedutíveis. IR no resgate apenas sobre rendimentos. Para declaração simplificada ou quem já usa teto PGBL.
+                        <br>Tabelas de tributação: Progressiva ou Regressiva (vantajosa para longo prazo). Custos: Taxa de adm., possível taxa de carregamento.
+                    </p>
+                    <p class="info-text"><em>É crucial compreender as nuances tributárias de cada ativo ou buscar assessoria qualificada.</em></p>
+                </div>
+            </details>
+            
+            <div class="subsection-container">
+                 <h3 class="subsection-title">Tabela: Exemplo de Alocação de Ativos para Longo Prazo (Perfil Moderado/Arrojado)</h3>
+                <p class="info-text">Esta é apenas uma ilustração. Ajuste os percentuais na seção interativa acima conforme seu perfil.</p>
+                 <div class="overflow-x-auto">
+                    <table class="table-like">
+                        <thead>
+                            <tr>
+                                <th>Classe de Ativo</th>
+                                <th>Subclasse (Exemplos)</th>
+                                <th>Percentual Sugerido no Exemplo (%)</th>
+                                <th>Objetivo Principal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Renda Fixa Brasil</td>
+                                <td>Tesouro IPCA+ / ETFs de Renda Fixa</td>
+                                <td>40%</td>
+                                <td>Proteção contra inflação, estabilidade, renda</td>
+                            </tr>
+                            <tr>
+                                <td>Renda Variável Brasil</td>
+                                <td>Ações (empresas sólidas) / FIIs / ETFs (BOVA11, SMALL11)</td>
+                                <td>30%</td>
+                                <td>Crescimento de capital, renda passiva (FIIs/Dividendos)</td>
+                            </tr>
+                            <tr>
+                                <td>Renda Variável Exterior</td>
+                                <td>BDRs / ETFs (IVVB11, WRLD11)</td>
+                                <td>30%</td>
+                                <td>Diversificação geográfica, dolarização, acesso a mercados globais</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 5. Escolhendo uma Corretora de Investimentos -->
+        <section class="mb-8">
+            <h2 class="section-title">5. Escolhendo uma Corretora de Investimentos</h2>
+            <div class="subsection-container">
+                <h3 class="subsection-title">5.1. Importância da Escolha da Corretora</h3>
+                <p class="info-text">
+                    A corretora de investimentos é a instituição que intermedia o acesso aos produtos financeiros. Uma escolha acertada pode significar economia de custos, maior variedade de produtos, uma melhor experiência de uso das plataformas e um suporte adequado, impactando diretamente a jornada do investidor.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">5.2. Critérios de Avaliação de Corretoras</h3>
+                <p class="info-text">Ao selecionar uma corretora, diversos fatores devem ser ponderados:</p>
+                <ul class="info-text">
+                    <li><strong>Custos e Taxas:</strong> Taxa de corretagem (muitas oferecem zero para RV), taxa de custódia (verificar isenções), taxas da B3 (padronizadas), taxas de administração de fundos.</li>
+                    <li><strong>Diversidade de Produtos:</strong> Amplo portfólio de RF, RV, Fundos, Previdência.</li>
+                    <li><strong>Plataforma de Negociação (Home Broker e App):</strong> Intuitiva, estável, fácil de usar.</li>
+                    <li><strong>Atendimento e Suporte ao Cliente:</strong> Canais ágeis e eficientes, qualidade da assessoria (se houver).</li>
+                    <li><strong>Reputação e Segurança:</strong> Registro na CVM, participante da B3, reputação em sites de avaliação (ex: Reclame Aqui).</li>
+                </ul>
+                <p class="info-text">A "taxa zero" não deve ser o único critério. Qualidade do atendimento, estabilidade das plataformas e confiabilidade são cruciais.</p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">5.3. Análise de Corretoras Selecionadas (Exemplos Genéricos)</h3>
+                <p class="info-text">A tabela abaixo é um exemplo ilustrativo. É fundamental pesquisar as condições atuais de cada corretora antes de decidir.</p>
+                <div class="overflow-x-auto">
+                    <table class="table-like">
+                        <thead>
+                            <tr>
+                                <th>Corretora (Exemplo)</th>
+                                <th>Taxa Corretagem (Ações/FIIs/ETFs)</th>
+                                <th>Taxa Custódia (TD/RF/RV)</th>
+                                <th>Principais Produtos Oferecidos</th>
+                                <th>Avaliação Reclame Aqui (Exemplo/Verificar)</th>
+                                <th>Plataforma (Destaques)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>BTG Pactual Digital</td>
+                                <td>Verificar (pode ter taxa zero ou específica)</td>
+                                <td>Verificar</td>
+                                <td>RF, RV, Fundos, Previdência, Câmbio</td>
+                                <td>Ex: 8.6/10 (RA1000)</td>
+                                <td>Intuitiva, App</td>
+                            </tr>
+                            <tr>
+                                <td>Nu Invest (Nubank)</td>
+                                <td>Zero (maioria)</td>
+                                <td>Zero (maioria)</td>
+                                <td>Caixinhas, TD, CDB, Bolsa, Fundos</td>
+                                <td>Ex: 8.6/10 (Ótimo)</td>
+                                <td>Integrada ao app Nubank, Educacional</td>
+                            </tr>
+                            <tr>
+                                <td>Rico</td>
+                                <td>Zero (RV)</td>
+                                <td>Isenção (maioria)</td>
+                                <td>RF, RV (Ações, BDRs, Opções)</td>
+                                <td>Ex: 8.1/10 (Ótimo)</td>
+                                <td>Simples, ideal para iniciantes</td>
+                            </tr>
+                             <tr>
+                                <td>XP Investimentos</td>
+                                <td>Verificar (pode variar)</td>
+                                <td>Zero (maioria)</td>
+                                <td>RF, Ações, Fundos, COE, Cripto</td>
+                                <td>Ex: 7.9/10 (Bom)</td>
+                                <td>Home Broker, App, Xpeed</td>
+                            </tr>
+                             <tr>
+                                <td>Clear Corretora</td>
+                                <td>Zero (todos)</td>
+                                <td>Zero</td>
+                                <td>RV (Ações, Minicontratos), TD</td>
+                                <td>Ex: 7.9/10 (Bom)</td>
+                                <td>Foco em trading</td>
+                            </tr>
+                             <tr>
+                                <td>Inter Invest</td>
+                                <td>Zero (maioria, ações EUA)</td>
+                                <td>Zero (maioria)</td>
+                                <td>CDB, TD, Fundos, Cripto, Ações BR/Globais</td>
+                                <td>Ex: 7.8/10 (Bom)</td>
+                                <td>Super App, Educacional</td>
+                            </tr>
+                            <!-- Adicionar mais corretoras se desejar -->
+                        </tbody>
+                    </table>
+                </div>
+                <p class="info-text mt-2"><em>Notas: As taxas e condições mudam. Verifique sempre as informações mais recentes diretamente com as corretoras. A avaliação do Reclame Aqui é um exemplo e deve ser consultada no momento da sua pesquisa.</em></p>
+            </div>
+        </section>
+
+        <!-- 6. Próximos Passos e Recomendações Finais -->
+        <section class="mb-8">
+            <h2 class="section-title">6. Próximos Passos e Recomendações Finais</h2>
+            <div class="subsection-container">
+                <h3 class="subsection-title">6.1. Plano de Ação Mensal Consolidado</h3>
+                <p class="info-text">
+                    Com base na sua renda líquida estimada e nos objetivos financeiros, defina sua capacidade de investimento mensal.
+                    Ao alterar a capacidade ou os dados do objetivo de curto prazo, os campos abaixo serão preenchidos com valores sugeridos. Você pode editá-los.
+                    O valor para o objetivo de curto prazo (calculado na seção 2.1: <span class="font-semibold" id="aporteMensalObjetivoDisplayClone">R$ 0.00</span>) é a base da primeira sugestão.
+                </p>
+                 <div>
+                    <label for="capacidadeInvestimentoMensal" class="input-label">Sua Capacidade de Investimento Mensal Total (R$):</label>
+                    <input type="number" id="capacidadeInvestimentoMensal" class="input-field mb-4" step="0.01" placeholder="4000.00">
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label for="aporteObjetivoUsuario" class="input-label">Aporte Objetivo Curto Prazo (R$):</label>
+                        <input type="number" id="aporteObjetivoUsuario" class="input-field" step="0.01" placeholder="Sugerido">
+                    </div>
+                    <div>
+                        <label for="aporteReservaUsuario" class="input-label">Aporte Reserva Emerg. (R$):</label>
+                        <input type="number" id="aporteReservaUsuario" class="input-field" step="0.01" placeholder="Sugerido">
+                    </div>
+                    <div>
+                        <label for="aporteLongoPrazoUsuario" class="input-label">Aporte Longo Prazo (R$):</label>
+                        <input type="number" id="aporteLongoPrazoUsuario" class="input-field" step="0.01" placeholder="Sugerido">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <p class="input-label">Total Alocado (R$): <span id="totalAlocado" class="calculated-value">R$ 0.00</span></p>
+                    <p class="input-label">Restante da Capacidade (R$): <span id="restanteCapacidade" class="calculated-value">R$ 0.00</span></p>
+                </div>
+                 <p class="info-text mt-4"><strong>Exemplo de Distribuição (Ajuste à sua realidade):</strong> Se sua capacidade for R$4.000 e o objetivo de curto prazo necessitar R$2.860, o sistema sugerirá R$2.860 para ele, e dividirá os R$1.140 restantes entre reserva (R$570) e longo prazo (R$570). Adapte os valores nos campos acima conforme sua preferência.</p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">6.2. Disciplina e Aportes Regulares</h3>
+                <p class="info-text">
+                    A consistência nos aportes mensais é um dos fatores mais críticos para o sucesso no longo prazo. Mais importante do que tentar prever o melhor momento para investir ("market timing") é manter a disciplina de investir regularmente, aproveitando o efeito do preço médio e dos juros compostos. Sempre que possível, a automatização dos investimentos (débito automático para aportes, por exemplo) pode auxiliar na manutenção dessa disciplina.
+                </p>
+            </div>
+             <div class="subsection-container">
+                <h3 class="subsection-title">6.3. Revisão Periódica da Carteira e Rebalanceamento</h3>
+                <p class="info-text">
+                   Especialmente para os investimentos de longo prazo, é recomendável realizar uma revisão da carteira pelo menos uma vez ao ano, ou sempre que ocorrerem mudanças significativas na situação financeira pessoal (aumento de renda, novas despesas importantes) ou no cenário econômico. O rebalanceamento consiste em ajustar as posições para que a alocação de ativos volte aos percentuais originalmente definidos.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">6.4. Educação Financeira Contínua</h3>
+                <p class="info-text">
+                    O mercado financeiro é dinâmico. Novas oportunidades, produtos e estratégias surgem constantemente. Manter-se informado e buscar continuamente o aprendizado sobre finanças e investimentos é fundamental para tomar decisões mais embasadas e proteger o patrimônio. Muitas corretoras e instituições financeiras oferecem vasto material educacional.
+                </p>
+            </div>
+            <div class="subsection-container">
+                <h3 class="subsection-title">6.5. Reafirmação da Importância do Suitability e Alerta Legal</h3>
+                <p class="info-text">
+                    Reitera-se que este plano de investimentos é uma sugestão elaborada com base nas informações fornecidas e em análises de mercado. As decisões finais de investimento são de responsabilidade individual e devem estar estritamente alinhadas com o perfil de investidor (API) formalmente identificado pela corretora escolhida, conforme as normativas da CVM. Este relatório não constitui uma recomendação de compra ou venda de ativos específicos sem a devida análise de suitability pela instituição intermediadora autorizada. Rentabilidade passada não é garantia de rentabilidade futura.
+                </p>
+                <p class="info-text">
+                    A jornada para alcançar os objetivos financeiros é uma maratona, não uma corrida de curta distância. Atingir a independência financeira e realizar grandes sonhos por meio dos investimentos é um processo que exige paciência, disciplina e aprendizado contínuo.
+                </p>
+            </div>
+        </section>
+
+        <hr class="my-8 border-gray-300">
+
+        <div class="text-center">
+            <button id="generatePdfButton" class="action-button"> <!-- Changed ID and text -->
+                Gerar PDF do Plano
+            </button>
+            <div id="loadingIndicator" class="hidden mt-4 text-blue-600">
+                <svg class="animate-spin h-5 w-5 mr-3 inline" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Gerando PDF...
+            </div>
+            <div id="successMessage" class="hidden message-box success-message"></div>
+            <div id="errorMessage" class="hidden message-box error-message"></div>
+        </div>
+
+        <footer class="mt-12 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
+            <p>Este é um plano de investimentos personalizado e interativo. Os valores são estimativas e devem ser ajustados à sua realidade. Consulte um profissional de investimentos para aconselhamento.</p>
+            <p>&copy; 2024-2025 Seu Planejador Financeiro Digital. Plano gerado localmente.</p>
+        </footer>
+
+    </div> <!-- End of planContentToPrint -->
+     <script>
+        const originalAporteObjetivoDisplay = document.getElementById('aporteMensalObjetivo');
+        const cloneAporteObjetivoDisplay = document.getElementById('aporteMensalObjetivoDisplayClone');
+
+        if(originalAporteObjetivoDisplay && cloneAporteObjetivoDisplay) {
+            const observer = new MutationObserver(function(mutationsList) {
+                for(let mutation of mutationsList) {
+                    if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                        cloneAporteObjetivoDisplay.textContent = originalAporteObjetivoDisplay.textContent;
+                    }
+                }
+            });
+            observer.observe(originalAporteObjetivoDisplay, { characterData: true, childList: true, subtree: true });
+            cloneAporteObjetivoDisplay.textContent = originalAporteObjetivoDisplay.textContent;
+        }
+    </script>
+</body>
+</html>
