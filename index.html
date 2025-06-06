@@ -6,11 +6,14 @@
     <title>Plano de Investimentos Personalizado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8982289140014007"
+     crossorigin="anonymous"></script>
+
     <!-- jsPDF and html2canvas for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVަB5eALEجAwIm//iQ3glAjXhHLCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" xintegrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4FsaNzgUApjvkxtaGqLCLgPQRZaBPfWls3RjYAYVC/AFaJk2SnNmlmOUTA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script type="module">
-        // No Firebase imports or initialization needed for local version with PDF generation
 
         let planData = {
             aporteMensalObjetivo: 0 
@@ -50,11 +53,10 @@
         const totalAlocadoDisplay = document.getElementById('totalAlocado');
         const restanteCapacidadeDisplay = document.getElementById('restanteCapacidade');
         
-        const generatePdfButton = document.getElementById('generatePdfButton'); // Changed from saveButton
-        const loadingIndicator = document.getElementById('loadingIndicator'); // Can be used for PDF generation
+        const generatePdfButton = document.getElementById('generatePdfButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
-        // userIdDisplay is removed from HTML
 
         // --- FUNÇÕES DE CÁLCULO E SUGESTÃO ---
         function calculateRendaLiquida() {
@@ -189,7 +191,7 @@
             };
         }
 
-        function collectAllData() { // Collects data for PDF generation or other local uses
+        function collectAllData() { 
             planData.salarioBruto = salarioBrutoInput ? parseFloat(salarioBrutoInput.value) || 0 : 0;
             planData.deducaoINSS = deducaoINSSInput ? parseFloat(deducaoINSSInput.value) || 0 : 0; 
             planData.irrfDevido = irrfDevidoInput ? parseFloat(irrfDevidoInput.value) || 0 : 0; 
@@ -212,7 +214,6 @@
                 rvext: alocacaoLPRVEXTInput ? parseFloat(alocacaoLPRVEXTInput.value) || 0 : 0,
             };
             planData.capacidadeInvestimentoMensal = capacidadeInvestimentoMensalInput ? parseFloat(capacidadeInvestimentoMensalInput.value) || 0 : 0;
-            // `planData.aportesReais` and `planData.aporteMensalObjetivo` are already updated by their respective functions
         }
         
         function handleFullRecalculationAndSuggestion() {
@@ -266,53 +267,54 @@
             if (generatePdfButton) generatePdfButton.disabled = true;
             if (successMessage) successMessage.classList.add('hidden');
             if (errorMessage) errorMessage.classList.add('hidden');
+            
+            // Hide ad slots before generating PDF
+            const adSlots = document.querySelectorAll('.adsbygoogle-placeholder, .adsbygoogle');
+            adSlots.forEach(slot => slot.style.display = 'none');
+
 
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'pt', 'a4');
-            const content = document.getElementById('planContentToPrint'); // Main content div
+            const content = document.getElementById('planContentToPrint'); 
             
-            // Ensure all 'details' elements are open for printing
             const allDetails = content.querySelectorAll('details');
             allDetails.forEach(detail => detail.open = true);
 
-            // Temporarily adjust styles for PDF generation if needed
-            // For example, remove shadows that might render poorly
             content.style.boxShadow = 'none';
             const subsectionContainers = content.querySelectorAll('.subsection-container');
             subsectionContainers.forEach(sc => sc.style.boxShadow = 'none');
 
 
             html2canvas(content, {
-                scale: 2, // Increase scale for better quality
+                scale: 2, 
                 useCORS: true,
                 onclone: (document) => {
-                    // This onclone function is crucial for Tailwind styles to be applied in html2canvas
-                    // It re-applies the Tailwind stylesheet link to the cloned document
                     const tailwindLink = document.createElement('link');
                     tailwindLink.rel = 'stylesheet';
-                    tailwindLink.href = 'https://cdn.tailwindcss.com'; // Ensure this matches your actual Tailwind CSS source
+                    tailwindLink.href = 'https://cdn.tailwindcss.com'; 
                     document.head.appendChild(tailwindLink);
-
-                    // Ensure all 'details' elements are open in the cloned document as well
                      const clonedDetails = document.querySelectorAll('details');
                      clonedDetails.forEach(detail => detail.open = true);
                 }
             }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const imgProps = pdf.getImageProperties(imgData);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfWidth = pdf.internal.pageSize.getWidth() - 80; // Subtract margins (e.g., 40pt each side)
                 const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
                 let heightLeft = pdfHeight;
                 let position = 0;
+                const pageMargin = 40;
 
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= pdf.internal.pageSize.getHeight();
+
+                pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, pdfWidth, pdfHeight);
+                heightLeft -= (pdf.internal.pageSize.getHeight() - 2 * pageMargin);
+
 
                 while (heightLeft >= 0) {
-                    position = heightLeft - pdfHeight;
+                    position = heightLeft - pdfHeight - pageMargin ; // Adjust position for subsequent pages
                     pdf.addPage();
-                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                    heightLeft -= pdf.internal.pageSize.getHeight();
+                    pdf.addImage(imgData, 'PNG', pageMargin, position + pageMargin, pdfWidth, pdfHeight);
+                    heightLeft -= (pdf.internal.pageSize.getHeight() - 2 * pageMargin);
                 }
                 pdf.save('PlanoDeInvestimentos.pdf');
                 if (successMessage) {
@@ -327,9 +329,10 @@
                     errorMessage.classList.remove('hidden');
                 }
             }).finally(() => {
-                 // Restore original styles
-                content.style.boxShadow = ''; // Restore or set to original
+                content.style.boxShadow = ''; 
                 subsectionContainers.forEach(sc => sc.style.boxShadow = '');
+                 // Show ad slots again
+                adSlots.forEach(slot => slot.style.display = 'block'); // Or its original display style
 
                 if (loadingIndicator) loadingIndicator.classList.add('hidden');
                 if (generatePdfButton) generatePdfButton.disabled = false;
@@ -337,9 +340,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // No authUser or loadPlan needed for local version
             populateFormWithDefaultData(); 
-            handleFullRecalculationAndSuggestion(); // Initial calculation and suggestion
+            handleFullRecalculationAndSuggestion(); 
 
             const inputsForFullRecalcAndSuggestion = [
                 capacidadeInvestimentoMensalInput, 
@@ -369,7 +371,7 @@
                 if (input) input.addEventListener('input', handlePartialRecalculation);
             });
             
-            if (generatePdfButton) { // Changed from saveButton
+            if (generatePdfButton) { 
                 generatePdfButton.addEventListener('click', generatePDF);
             }
         });
@@ -392,7 +394,7 @@
         .table-like th, .table-like td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; }
         .table-like th { background-color: #f3f4f6; font-weight: 600; color: #374151;}
         .table-like tr:nth-child(even) { background-color: #f9fafb; }
-        .action-button { /* Renamed from save-button for generality */
+        .action-button { 
             background-color: #1d4ed8; color: white; padding: 0.75rem 1.5rem; 
             border-radius: 0.375rem; font-weight: 500; cursor: pointer; 
             transition: background-color 0.2s; border: none;
@@ -408,14 +410,28 @@
         details[open] summary { border-bottom: 1px solid #e5e7eb; }
         .details-content { padding: 1rem; }
 
-        /* Styles for PDF output (some might be overridden by html2canvas processing) */
+        /* AdSense Placeholder Styling (Optional) */
+        .adsbygoogle-placeholder {
+            background-color: #f0f0f0;
+            border: 1px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #777;
+            font-size: 0.9rem;
+            min-height: 90px; /* Default AdSense banner height */
+            width: 100%;
+            margin: 1rem 0;
+        }
+
         @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .action-button, #loadingIndicator, #successMessage, #errorMessage, footer p:last-child { display: none !important; }
-            header p.text-sm { display:none !important; } /* Hide User ID in print */
-            details { border: 1px solid #ccc !important; } /* Ensure borders are visible */
+            .action-button, #loadingIndicator, #successMessage, #errorMessage, footer p:last-child, .adsbygoogle-placeholder, .adsbygoogle { display: none !important; }
+            header p.text-sm { display:none !important; } 
+            details { border: 1px solid #ccc !important; } 
             details summary { background-color: #eee !important; }
-            details[open] { page-break-inside: avoid; } /* Try to keep details content together */
+            details[open] { page-break-inside: avoid; } 
             .subsection-container { box-shadow: none !important; border: 1px solid #eee !important; margin-bottom: 10pt !important; padding: 10pt !important;}
             .table-like th, .table-like td { font-size: 8pt !important; padding: 4pt !important; }
             .section-title { font-size: 14pt !important; margin-bottom: 8pt !important; padding-bottom: 4pt !important; }
@@ -423,17 +439,30 @@
             .input-label { font-size: 9pt !important; }
             .info-text { font-size: 9pt !important; margin-bottom: 8pt !important; }
             .calculated-value, .final-value { font-size: 10pt !important; }
-            .input-field { display: none !important; } /* Hide input fields, show their values if needed via separate <p> tags in a print-specific div */
+            .input-field { display: none !important; } 
              #planContentToPrint { padding: 20pt !important; }
         }
 
     </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
-    <div id="planContentToPrint" class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl"> <!-- ID added for PDF generation -->
+    <div id="planContentToPrint" class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-lg shadow-xl"> 
         <header class="mb-8 text-center">
             <h1 class="text-3xl font-bold text-blue-700">Plano de Investimentos Personalizado</h1>
-            <!-- User ID display removed -->
+            
+            <!-- AdSense Ad Slot 1: Banner Topo -->
+            <div class="my-4 adsbygoogle-placeholder">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" 
+                     data-ad-slot="YYYYYYYYY1" 
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+                <!-- Texto de placeholder visível se o anúncio não carregar: 
+                <p>Espaço para Anúncio (Ex: Banner Horizontal 728x90)</p> 
+                -->
+            </div>
         </header>
 
         <!-- 1. Introdução e Análise da Situação Financeira Atual -->
@@ -684,6 +713,21 @@
                 </div>
             </div>
         </section>
+
+        <!-- AdSense Ad Slot 2: Entre Seções -->
+        <div class="my-8 text-center adsbygoogle-placeholder">
+             <ins class="adsbygoogle"
+                  style="display:block"
+                  data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                  data-ad-slot="YYYYYYYYY2"
+                  data-ad-format="auto"
+                  data-full-width-responsive="true"></ins>
+             <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+             <!-- Texto de placeholder visível se o anúncio não carregar:
+             <p>Espaço para Anúncio (Ex: Retângulo Médio 300x250 ou Responsivo)</p> 
+             -->
+        </div>
+
 
         <!-- 3. Construção da Sua Reserva de Emergência -->
         <section class="mb-8">
@@ -1061,7 +1105,7 @@
         <hr class="my-8 border-gray-300">
 
         <div class="text-center">
-            <button id="generatePdfButton" class="action-button"> <!-- Changed ID and text -->
+            <button id="generatePdfButton" class="action-button"> 
                 Gerar PDF do Plano
             </button>
             <div id="loadingIndicator" class="hidden mt-4 text-blue-600">
@@ -1074,13 +1118,27 @@
             <div id="successMessage" class="hidden message-box success-message"></div>
             <div id="errorMessage" class="hidden message-box error-message"></div>
         </div>
+        
+        <!-- AdSense Ad Slot 3: Acima do Rodapé -->
+        <div class="my-8 text-center adsbygoogle-placeholder">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                 data-ad-slot="YYYYYYYYY3"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+            <!-- Texto de placeholder visível se o anúncio não carregar:
+            <p>Espaço para Anúncio (Ex: Banner Horizontal 728x90)</p> 
+            -->
+        </div>
 
         <footer class="mt-12 pt-6 border-t border-gray-300 text-center text-sm text-gray-500">
             <p>Este é um plano de investimentos personalizado e interativo. Os valores são estimativas e devem ser ajustados à sua realidade. Consulte um profissional de investimentos para aconselhamento.</p>
             <p>&copy; 2024-2025 Seu Planejador Financeiro Digital. Plano gerado localmente.</p>
         </footer>
 
-    </div> <!-- End of planContentToPrint -->
+    </div> 
      <script>
         const originalAporteObjetivoDisplay = document.getElementById('aporteMensalObjetivo');
         const cloneAporteObjetivoDisplay = document.getElementById('aporteMensalObjetivoDisplayClone');
